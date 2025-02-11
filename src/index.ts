@@ -67,15 +67,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
   }
 
-  const { schema, table_name, output_table_name } = request.params.arguments as {
+  const { table_name, output_table_name } = request.params.arguments as {
     schema: { fields: { name: string; type: string }[] };
     table_name: string;
     output_table_name: string;
   };
 
-  if (!schema || !schema.fields) {
-    throw new McpError(ErrorCode.InvalidParams, "Invalid schema format");
-  }
+  // Fetch schema dynamically using bq command
+  const execSync = require('child_process').execSync;
+  const schemaJson = execSync(`bq show --schema --format=json tidal-anvil-621:Payment_Method_Raw_Data.${table_name}`).toString();
+  const schema = JSON.parse(schemaJson);
 
   // Mapping input schema fields to output schema transformations
   const fieldMappings: Record<string, string> = {
@@ -150,3 +151,4 @@ ${selectFields}
 // Start the MCP server
 const transport = new StdioServerTransport();
 server.connect(transport).catch(console.error);
+
